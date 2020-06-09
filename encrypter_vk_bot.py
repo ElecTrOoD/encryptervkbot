@@ -1,11 +1,12 @@
 import json
-import vk_api
-from vk_api.longpoll import VkLongPoll, VkEventType
-from vk_api.utils import get_random_id
+import time
 from random import shuffle
 from typing import List, Any
-import time
+
+import vk_api
 from config import *
+from vk_api.longpoll import VkLongPoll, VkEventType
+from vk_api.utils import get_random_id
 
 
 def mix(string_in):
@@ -25,18 +26,18 @@ def sort(string_in):
     return sorted_string
 
 
-def slicetext(text_in):
-    lefthalf = []
-    righthalf = []
+def slice_text(text_in):
+    left_half = []
+    right_half = []
     while len(text_in) % block_length != 0:
         text_in += "\x20"
     for i in range(0, len(text_in), block_length):
-        lefthalf.append(text_in[i:i + int(block_length / 2)])
-        righthalf.append(text_in[i + int(block_length / 2):i + int(block_length)])
-    return lefthalf, righthalf
+        left_half.append(text_in[i:i + int(block_length / 2)])
+        right_half.append(text_in[i + int(block_length / 2):i + int(block_length)])
+    return left_half, right_half
 
 
-def function(text_in, multiplier):
+def transformation(text_in, multiplier):
     text_out = ""
     for i in range(len(text_in)):
         letter_number = alphabet.index(text_in[i]) * multiplier % len(alphabet)
@@ -60,37 +61,36 @@ def subtraction(string_1, string_2):
 
 
 def crypt(text_in):
-    lefthalf: List[Any]
-    lefthalf, righthalf = slicetext(text_in)
+    left_half, right_half = slice_text(text_in)
     text_out = ""
-    for i in range(len(righthalf)):
-        lefthalf_storage = []
+    for i in range(len(right_half)):
+        left_half_storage = []
         for j in range(3):
-            lefthalf_storage.append(righthalf[i])
-            righthalf[i] = addition(lefthalf[i], function(lefthalf_storage[j], multipliers[j]))
-            lefthalf[i] = lefthalf_storage[j]
-        lefthalf[i] = mix(lefthalf[i])
-        righthalf[i] = mix(righthalf[i])
-        text_out += str(lefthalf[i]) + str(righthalf[i])
+            left_half_storage.append(right_half[i])
+            right_half[i] = addition(left_half[i], transformation(left_half_storage[j], multipliers[j]))
+            left_half[i] = left_half_storage[j]
+        left_half[i] = mix(left_half[i])
+        right_half[i] = mix(right_half[i])
+        text_out += str(left_half[i]) + str(right_half[i])
     return text_out
 
 
 def decrypt(text_in):
-    lefthalf: List[Any]
-    lefthalf, righthalf = slicetext(text_in)
-    for i in range(len(righthalf)):
-        lefthalf[i] = sort(lefthalf[i])
-        righthalf[i] = sort(righthalf[i])
+    left_half: List[Any]
+    left_half, right_half = slice_text(text_in)
+    for i in range(len(right_half)):
+        left_half[i] = sort(left_half[i])
+        right_half[i] = sort(right_half[i])
     text_out = ""
-    for i in range(len(righthalf)):
-        lefthalf_storage = []
+    for i in range(len(right_half)):
+        left_half_storage = []
         p = 0
         for j in range(3, 0, -1):
-            lefthalf_storage.append(lefthalf[i])
-            lefthalf[i] = subtraction(righthalf[i], function(lefthalf_storage[p], multipliers[j - 1]))
-            righthalf[i] = lefthalf_storage[p]
+            left_half_storage.append(left_half[i])
+            left_half[i] = subtraction(right_half[i], transformation(left_half_storage[p], multipliers[j - 1]))
+            right_half[i] = left_half_storage[p]
             p += 1
-        text_out += str(lefthalf[i]) + str(righthalf[i])
+        text_out += str(left_half[i]) + str(right_half[i])
     return text_out
 
 
@@ -115,7 +115,7 @@ def get_button(label, color, payload=''):
     }
 
 
-# noinspection SpellCheckingInspection
+answer = 0
 vk = vk_api.VkApi(token=TOKEN)
 longpoll = VkLongPoll(vk)
 
@@ -162,7 +162,6 @@ while True:
                 print('{clock}: Пользователь неопределился.'.format(
                     clock=time.strftime("%d-%m-%y %H.%M.%S", time.localtime())))
     if answer == 1:
-        # noinspection PyBroadException
         try:
             for event in longpoll.listen():
                 if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
@@ -183,10 +182,8 @@ while True:
                         clock=time.strftime("%d-%m-%y %H.%M.%S", time.localtime())))
                     break
         except:
-            # noinspection PyUnboundLocalVariable
             write_msg(event.user_id, 'Произошла ошибка, попробуйте ещё раз.', keyboard, '')
             print('{clock}: Зашифровано неуспешно'.format(clock=time.strftime("%d-%m-%y %H.%M.%S", time.localtime())))
-    # noinspection PyBroadException
     try:
         if answer == 2:
             for event in longpoll.listen():
@@ -204,7 +201,6 @@ while True:
             for event in longpoll.listen():
                 if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
                     request = event.text
-                    # noinspection PyUnboundLocalVariable
                     if secret_key == '0123456789' and request.lower() == 'секретные материалы':
                         write_msg(event.user_id, '', keyboard, 'photo-195601257_457239020')
                         print('{clock}: Шалун решил поглядеть на секретные материалы.'.format(
